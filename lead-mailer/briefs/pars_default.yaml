@@ -1,0 +1,14 @@
+# Brief for profile pars_default. The writer (LLM or template) may only use what is here.
+tone: friendly, brief, professional, no hype
+sender_name: Kian, Pars Painting Melbourne
+offer: >
+  a free on-site look at interior or exterior painting work, with a clear written quote afterwards
+facts:                       # the only claims allowed in emails; numbers not listed here are rejected
+  - fully insured
+  - based in Melbourne, working across the inner suburbs
+  - residential and small commercial painting
+forbidden:                   # words that quarantine a draft (default rules already block pricing and timelines)
+  - cheapest
+  - best in Melbourne
+  - award-winning
+  - guaranteed

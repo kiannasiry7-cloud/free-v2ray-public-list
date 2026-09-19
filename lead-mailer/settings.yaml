@@ -1,0 +1,78 @@
+# leadmailer settings. Everything the program can vary lives here; see README.md "How to change settings".
+
+app:
+  db_path: data/leadmailer.sqlite      # relative to this file
+  timezone: Australia/Melbourne
+
+llm:
+  # Define as many providers as you like. Each part below picks one by name (or "none").
+  providers:
+    local_ollama:
+      type: ollama
+      base_url: http://localhost:11434
+      model: llama3.1
+      timeout_seconds: 60
+    # another_ai:
+    #   type: openai_compatible          # any /v1/chat/completions endpoint
+    #   base_url: https://api.example.com/v1
+    #   model: some-model
+    #   api_key_env: ANOTHER_AI_KEY
+  use:
+    finder: none                         # optional: cleans up company names from pages
+    writer: local_ollama
+    sender: none
+  fallback_to_template: true             # writer uses the plain template if the LLM is down
+
+mailboxes:
+  kian:
+    from_name: "Kian - Pars Painting Melbourne"
+    from_email: kian@parspaintingteam.com
+    reply_to: kian@parspaintingteam.com
+    method: smtp                         # smtp | apple_mail
+    smtp:
+      host: ""                           # e.g. smtp.office365.com / smtp.gmail.com
+      port: 587
+      username: kian@parspaintingteam.com
+      starttls: true
+      password_source: keychain          # keychain (macOS) | env
+      password_env: LEADMAILER_SMTP_PASSWORD_KIAN
+      keychain: { server: "", account: kian@parspaintingteam.com }   # empty server = smtp.host
+  sales:
+    from_name: "Pars Painting Melbourne"
+    from_email: sales@parspaintingteam.com
+    reply_to: sales@parspaintingteam.com
+    method: smtp
+    smtp:
+      host: ""
+      port: 587
+      username: sales@parspaintingteam.com
+      starttls: true
+      password_source: keychain
+      password_env: LEADMAILER_SMTP_PASSWORD_SALES
+      keychain: { server: "", account: sales@parspaintingteam.com }
+
+sender:
+  dry_run: true                          # set to false only when you are ready; the CLI still asks for APPROVE SEND
+  hourly_cap: 5                          # per mailbox
+  daily_cap: 20                          # per mailbox
+  spacing_seconds: 60
+  warmup:
+    enabled: true
+    steps: [5, 10, 15, 20]               # daily cap on day 1, 2, 3, 4 after the first real send; then daily_cap
+  unsubscribe_footer: true
+
+profiles:
+  pars_default:
+    business: "Pars Painting Melbourne"
+    brief: briefs/pars_default.yaml
+    templates_dir: templates/pars_default
+    mailboxes: [kian, sales]             # round-robin between these
+    segment: residential_and_small_commercial
+    suburbs: [Carlton, Fitzroy, Collingwood, Richmond, Brunswick, Northcote, South Yarra, Prahran, St Kilda, Footscray]
+    keywords: [property manager, real estate, strata, builder, renovation]
+    daily_cap: 30                        # max new leads observed per day for this profile
+    sources:
+      - type: csv_file                   # columns: company,segment,suburb,email,source_url
+        path: sources/pars_manual.csv
+      # - type: html_page                # {suburb} and {keyword} are expanded from the lists above
+      #   url: "https://example.org/directory?q={keyword}+{suburb}"
