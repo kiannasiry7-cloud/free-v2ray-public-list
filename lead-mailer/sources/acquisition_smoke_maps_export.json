@@ -1,0 +1,38 @@
+[
+  {
+    "title": "Sample Terrace Property Group",
+    "website": "https://sample-terrace-group.test",
+    "phone": "+61 3 0000 0000",
+    "complete_address": {"city": "Fitzroy", "street": "1 Sample Street"},
+    "link": "https://sample-terrace-group.test/contact",
+    "query": "property manager Fitzroy",
+    "emails": ["director@sample-terrace-group.test"]
+  },
+  {
+    "title": "Sample Strata Services",
+    "website": "https://sample-strata.test",
+    "phone": "+61 3 0000 0001",
+    "complete_address": {"city": "Brunswick", "street": "2 Sample Road"},
+    "link": "https://sample-strata.test/about",
+    "query": "strata Brunswick",
+    "emails": ["noreply@sample-strata.test", "office@sample-strata.test"]
+  },
+  {
+    "title": "Sample Row With A Filtered Address",
+    "website": "https://sample-filtered.test",
+    "phone": "",
+    "complete_address": {"city": "Carlton"},
+    "link": "https://sample-filtered.test",
+    "query": "builder Carlton",
+    "emails": ["hello@example.com"]
+  },
+  {
+    "title": "Sample Row With No Address At All",
+    "website": "https://sample-no-email.test",
+    "phone": "+61 3 0000 0002",
+    "complete_address": {"city": "Northcote"},
+    "link": "https://sample-no-email.test",
+    "query": "renovation Northcote",
+    "emails": []
+  }
+]

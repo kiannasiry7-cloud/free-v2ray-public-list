@@ -30,7 +30,7 @@ mailboxes:
     reply_to: kian@parspaintingteam.com
     method: smtp                         # smtp | apple_mail
     smtp:
-      host: ""                           # e.g. smtp.office365.com / smtp.gmail.com
+      host: lotus.secure-hq.com                           # e.g. smtp.office365.com / smtp.gmail.com
       port: 587
       username: kian@parspaintingteam.com
       starttls: true
@@ -43,7 +43,7 @@ mailboxes:
     reply_to: sales@parspaintingteam.com
     method: smtp
     smtp:
-      host: ""
+      host: lotus.secure-hq.com
       port: 587
       username: sales@parspaintingteam.com
       starttls: true
@@ -76,3 +76,56 @@ profiles:
         path: sources/pars_manual.csv
       # - type: html_page                # {suburb} and {keyword} are expanded from the lists above
       #   url: "https://example.org/directory?q={keyword}+{suburb}"
+      # - type: maps_export              # a file gosom/google-maps-scraper already produced
+      #   path: sources/maps.json
+      # - type: maps_command             # or run a locally installed scraper and read its stdout
+      #   command: [google-maps-scraper, -input, queries.txt, -json, -exit-on-inactivity, 3m]
+      #   timeout_seconds: 600
+
+  # No-send rehearsal of the acquisition path. Same Finder, same ledger, same gates as
+  # pars_default - only the source differs, and it is a checked-in sample file whose domains are
+  # all under the reserved .test TLD (RFC 6761), so nothing here resolves and nobody is contacted.
+  # Run it with: leadmailer finder --profile acquisition_smoke
+  acquisition_smoke:
+    business: "Pars Painting Melbourne"
+    brief: briefs/pars_default.yaml
+    templates_dir: templates/pars_default
+    mailboxes: [kian]
+    segment: residential_and_small_commercial
+    suburbs: [Carlton, Fitzroy, Brunswick, Northcote]
+    keywords: [property manager, strata, builder, renovation]
+    daily_cap: 10
+    sources:
+      - type: maps_export
+        path: sources/acquisition_smoke_maps_export.json
+
+# Optional acquisition block, wired to the pinned local services installed on 2026-09-20.
+# See README.md "External components". Every value here is a ceiling or a gate, never a target.
+acquisition:
+  max_candidates_per_run: 20           # hard ceiling on new candidates per finder run
+  max_contacts_per_business: 1         # one address per company, never a list dump
+  min_quality_score: 45                # quality first: a bare address with no corroboration cannot pass
+  require_verification: true           # fail closed: only a positive Reacher "valid" may become send-ready
+  crawl4ai:
+    # Off on this host. unclecode/crawl4ai:0.7.4 is 2.68 GB compressed / ~7 GB extracted and does not
+    # fit the 20 GB Colima data disk, which other projects already fill to 94%. Flip `enabled` to true
+    # after `docker run -d -p 11235:11235 --shm-size=1g unclecode/crawl4ai:0.7.4` on a host with room;
+    # nothing else needs to change. While it is off the finder uses only the addresses the scraper row
+    # already carried, which is the pre-existing behaviour.
+    enabled: false
+    base_url: http://127.0.0.1:11235
+    timeout_seconds: 30
+    max_pages_per_site: 3
+    paths: ["", contact, contact-us, about]
+    api_key_env: ""                    # name of an env var, never the key itself
+  reacher:
+    # reacherhq/backend:v0.10.0, container leadmailer-reacher, 127.0.0.1:8086 -> 8080.
+    # Syntax and MX checks work here. SMTP verification does NOT: outbound port 25 is blocked on this
+    # Mac, so a domain with real MX records makes Reacher hang until the timeout below. That surfaces as
+    # AdapterUnavailable -> `unverified`, and with require_verification above the lead is QUARANTINED
+    # rather than treated as a pass. No mail is ever sent by a verification.
+    enabled: true
+    base_url: http://127.0.0.1:8086
+    timeout_seconds: 25
+    from_email: verify@ppmel.com.au    # envelope identity for the probe only
+    api_key_env: ""

@@ -25,10 +25,11 @@ def _profiles(settings: Settings, name: str | None) -> list[str]:
 def cmd_finder(args, settings, db):
     provider = provider_for(settings, "finder")
     for prof in _profiles(settings, args.profile):
-        results = run_finder(db, settings, prof, provider)
+        results = run_finder(db, settings, prof, provider, log=lambda msg: print(msg))
         print(f"[{prof}] {len(results)} leads observed")
         for r in results:
-            print(f"  #{r.lead_id:<5} {r.status:<19} {r.company[:30]:<30} {r.suburb:<14} {r.email}  {r.reason or ''}")
+            print(f"  #{r.lead_id:<5} {r.status:<19} q={r.quality_score:<3} {r.verification:<11} "
+                  f"{r.company[:30]:<30} {r.suburb:<14} {r.email}  {r.reason or ''}")
 
 
 def cmd_writer(args, settings, db):

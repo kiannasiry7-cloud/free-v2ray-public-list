@@ -27,6 +27,18 @@ MAILBOX_REQUIRED = ["from_name", "from_email", "reply_to", "method"]
 SMTP_REQUIRED = ["host", "port", "username", "password_env", "starttls"]
 
 
+# Optional block. Absent settings.yaml keys keep the pre-existing behaviour exactly:
+# both external adapters off, nothing gated on verification, no score threshold.
+ACQUISITION_DEFAULTS = {
+    "max_candidates_per_run": 20,      # low-volume policy, matches sender.daily_cap per mailbox
+    "max_contacts_per_business": 1,    # one decision-maker address per company, never a list dump
+    "min_quality_score": 0,            # raise this to make the finder pickier
+    "require_verification": False,     # true = an unverified address cannot become a candidate
+    "crawl4ai": {"enabled": False},
+    "reacher": {"enabled": False},
+}
+
+
 class ConfigError(Exception):
     pass
 
@@ -63,6 +75,15 @@ class Settings:
 
     def db_path(self) -> Path:
         return self.path(self.get("app.db_path"))
+
+    def acquisition(self) -> dict:
+        """The optional `acquisition:` block, merged over defaults. Missing block == all defaults."""
+        raw = self.get("acquisition", default={}, required=False) or {}
+        if not isinstance(raw, dict):
+            raise ConfigError("acquisition must be a mapping")
+        merged = dict(ACQUISITION_DEFAULTS)
+        merged.update(raw)
+        return merged
 
     def profile(self, name: str) -> dict:
         profiles = self.get("profiles")

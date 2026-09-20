@@ -177,6 +177,8 @@ def run_sender(db: Database, settings: Settings, profile_name: str, confirm_phra
     spacing = float(settings.get("sender.spacing_seconds"))
     hour_ago = (now - timedelta(hours=1)).isoformat(timespec="seconds")
     day_prefix = now.isoformat()[:10]
+    # stamp the ledger with the same clock the caps are measured against
+    sent_at = now.isoformat(timespec="seconds")
 
     def capacity(box_name: str) -> bool:
         return (db.sends_since(hour_ago, box_name, dry_run) < hourly_cap
@@ -213,7 +215,7 @@ def run_sender(db: Database, settings: Settings, profile_name: str, confirm_phra
 
         msg = build_message(settings, box, lead, draft)
         if dry_run:
-            db.log_send(lead["id"], draft["id"], box["name"], lead["email"], True, "sent", msg["Message-ID"])
+            db.log_send(lead["id"], draft["id"], box["name"], lead["email"], True, "sent", msg["Message-ID"], sent_at)
             report.sent.append((lead["id"], lead["email"], box["name"]))
             continue
 
@@ -223,20 +225,20 @@ def run_sender(db: Database, settings: Settings, profile_name: str, confirm_phra
         try:
             message_id = transport.send(msg)
         except BounceError as e:
-            db.log_send(lead["id"], draft["id"], box["name"], lead["email"], False, "bounce", msg["Message-ID"])
+            db.log_send(lead["id"], draft["id"], box["name"], lead["email"], False, "bounce", msg["Message-ID"], sent_at)
             guards.record_bounce(db, lead["email"])
             report.skipped.append((lead["id"], lead["email"], "bounce"))
             report.stopped_because = f"auto-paused after bounce: {e}"
             break
         except TransportError as e:
-            db.log_send(lead["id"], draft["id"], box["name"], lead["email"], False, f"error:{e}", msg["Message-ID"])
+            db.log_send(lead["id"], draft["id"], box["name"], lead["email"], False, f"error:{e}", msg["Message-ID"], sent_at)
             db.transition(lead["id"], states.QUARANTINED, f"transport_error:{e}")
             report.skipped.append((lead["id"], lead["email"], f"transport_error:{e}"))
             report.stopped_because = f"transport error: {e}"
             break
         if not db.state_get(WARMUP_KEY):
             db.state_set(WARMUP_KEY, now.isoformat())
-        db.log_send(lead["id"], draft["id"], box["name"], lead["email"], False, "sent", message_id)
+        db.log_send(lead["id"], draft["id"], box["name"], lead["email"], False, "sent", message_id, sent_at)
         db.transition(lead["id"], states.SENT)
         report.sent.append((lead["id"], lead["email"], box["name"]))
     return report

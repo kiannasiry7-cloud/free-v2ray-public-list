@@ -12,6 +12,13 @@ ROOT = Path(__file__).resolve().parent.parent
 
 def make_settings(tmp_path: Path, **overrides) -> Settings:
     raw = yaml.safe_load((ROOT / "settings.yaml").read_text())
+    # The fixture is the CORE of this project, not its deployment. settings.yaml carries a live
+    # `acquisition:` block and the no-send `acquisition_smoke` profile, and letting either leak in
+    # here would make every unrelated finder/writer/sender test depend on how this one machine is
+    # configured. Tests that want external adapters build them explicitly (test_finder_acquisition.py),
+    # and the shipped block has its own test in test_cli_config.py.
+    raw.pop("acquisition", None)
+    raw["profiles"].pop("acquisition_smoke", None)
     raw["app"]["db_path"] = "db.sqlite"
     raw["sender"]["spacing_seconds"] = 0
     raw["llm"]["use"]["writer"] = "none"

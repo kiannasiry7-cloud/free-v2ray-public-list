@@ -68,6 +68,19 @@ CREATE TABLE IF NOT EXISTS state (
 );
 """
 
+# Added after the first release; applied with ALTER TABLE so existing ledgers keep their rows.
+# They are provenance and grading columns on the same lead record — not a second store.
+LEAD_EXTRA_COLUMNS = {
+    "website": "TEXT",
+    "phone": "TEXT",
+    "evidence_url": "TEXT",          # the exact public page the contact was read from
+    "provenance": "TEXT",            # which source/adapter produced this lead
+    "verification": "TEXT",          # valid | invalid | risky | catch_all | unknown | unverified
+    "verification_detail": "TEXT",
+    "quality_score": "INTEGER",
+    "quality_reason": "TEXT",
+}
+
 
 class DatabaseLocked(Exception):
     pass
@@ -99,6 +112,7 @@ class Database:
         self.conn.row_factory = sqlite3.Row
         self.conn.execute("PRAGMA journal_mode=WAL")
         self.conn.executescript(SCHEMA)
+        self._migrate()
         return self
 
     def __exit__(self, *exc):
@@ -114,14 +128,28 @@ class Database:
             self._lock_fh.close()
             self._lock_fh = None
 
+    def _migrate(self) -> None:
+        have = {r["name"] for r in self.conn.execute("PRAGMA table_info(leads)")}
+        for column, sql_type in LEAD_EXTRA_COLUMNS.items():
+            if column not in have:
+                self.conn.execute(f"ALTER TABLE leads ADD COLUMN {column} {sql_type}")
+
     # ---- leads -------------------------------------------------------------
     def insert_lead(self, profile, company, segment, suburb, email, source_url, observed_at,
-                    status=states.CANDIDATE, reason=None, duplicate_of=None) -> int:
+                    status=states.CANDIDATE, reason=None, duplicate_of=None, extra: dict | None = None) -> int:
+        """extra may carry any of LEAD_EXTRA_COLUMNS (provenance, verification, quality); unknown keys are refused."""
         now = utcnow()
+        extra = {k: v for k, v in (extra or {}).items() if v is not None}
+        unknown = set(extra) - set(LEAD_EXTRA_COLUMNS)
+        if unknown:
+            raise KeyError(f"unknown lead columns: {', '.join(sorted(unknown))}")
+        columns = ["profile", "company", "segment", "suburb", "email", "source_url", "observed_at",
+                   "status", "status_reason", "duplicate_of", "created_at", "updated_at", *extra]
+        values = [profile, company, segment, suburb, email, source_url, observed_at,
+                  status, reason, duplicate_of, now, now, *extra.values()]
         cur = self.conn.execute(
-            "INSERT INTO leads(profile,company,segment,suburb,email,source_url,observed_at,status,status_reason,duplicate_of,created_at,updated_at)"
-            " VALUES(?,?,?,?,?,?,?,?,?,?,?,?)",
-            (profile, company, segment, suburb, email, source_url, observed_at, status, reason, duplicate_of, now, now),
+            f"INSERT INTO leads({','.join(columns)}) VALUES({','.join('?' * len(columns))})",
+            values,
         )
         self.conn.execute(
             "INSERT INTO events(lead_id,from_status,to_status,reason,at) VALUES(?,?,?,?,?)",
